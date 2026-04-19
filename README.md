@@ -146,3 +146,4 @@ Skips: `.git/`, `__pycache__/`, `node_modules/`, `.venv/`, `dist/`, `build/`
 - **Paste mode**: Great for reviewing a single function or script without needing a file path
 - **Reports**: Use `--output report.md` to save reviews and track findings over time
 - **CLAUDE.md**: Edit this file to tune the review rules, add new categories, or adjust severity thresholds
+# test
