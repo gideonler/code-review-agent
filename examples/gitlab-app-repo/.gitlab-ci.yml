@@ -1,0 +1,64 @@
+#
+# App repo CI: clone + run code-review-agent against this MR diff.
+#
+# In the APP repo, set GitLab CI/CD variables (masked):
+#   ANTHROPIC_API_KEY                  (default provider)
+#   SENTINEL_PROVIDER=groq|gemini      (optional)
+#   GROQ_API_KEY / GEMINI_API_KEY      (if provider is groq / gemini)
+#
+# If the agent repo is private, set ONE of:
+#   AGENT_CLONE_URL    e.g. https://oauth2:<TOKEN>@gitlab.com/<group>/code-review-agent.git   (masked)
+#   AGENT_GIT_URL      e.g. https://gitlab.com/<group>/code-review-agent.git                 (public)
+#
+# Optional corporate proxy:
+#   HTTPS_PROXY / HTTP_PROXY / NO_PROXY
+#
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+variables:
+  GIT_DEPTH: "0"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  SENTINEL_PROVIDER: "anthropic"
+  AGENT_DIR: ".agent-src"
+  # For public agent repo:
+  AGENT_GIT_URL: "https://gitlab.com/<group>/code-review-agent.git"
+  # For private agent repo (recommended): set this as a masked CI variable in GitLab UI.
+  # AGENT_CLONE_URL: "https://oauth2:<TOKEN>@gitlab.com/<group>/code-review-agent.git"
+
+stages: [review]
+
+sentinel_mr_review:
+  stage: review
+  image: python:3.11-bookworm
+  timeout: 45m
+  interruptible: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  before_script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - python -m pip install --upgrade pip
+    - rm -rf "$AGENT_DIR"
+    - |
+      if [ -n "${AGENT_CLONE_URL:-}" ]; then
+        git clone --depth 1 "$AGENT_CLONE_URL" "$AGENT_DIR"
+      else
+        git clone --depth 1 "$AGENT_GIT_URL" "$AGENT_DIR"
+      fi
+    - python -m pip install -e "$AGENT_DIR"
+    - |
+      if [ "$SENTINEL_PROVIDER" = "groq" ]; then python -m pip install "groq>=0.9.0"; fi
+    - |
+      if [ "$SENTINEL_PROVIDER" = "gemini" ]; then python -m pip install "google-genai>=1.0.0"; fi
+  script:
+    - |
+      python "$AGENT_DIR/main.py" review . --no-stream --output review.md \
+        --provider "$SENTINEL_PROVIDER" \
+        --diff "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths: [review.md]
+

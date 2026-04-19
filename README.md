@@ -163,6 +163,21 @@ The job log may say that **`GITLAB_TOKEN`** is not set; that is expected and doe
 
 If you want the markdown **posted as a discussion** on the merge request (and updated on each push), add a masked **`GITLAB_TOKEN`**: **Settings → Access tokens** (project access token) with **`api`** scope, then add it as a CI/CD variable named **`GITLAB_TOKEN`**.
 
+### Separate “app repo” demo (recommended for showing it as a tool)
+
+If you want a **separate repository** that contains only your application code (and not this agent), use the **app repo** CI to **clone this agent repo** at runtime and run it against the merge request diff.
+
+1. **Create two GitLab projects**
+   - **Agent repo**: `code-review-agent` (this repo). Make it **public** for the easiest demo, or keep it private and use a **read-only token** for cloning.
+   - **App repo**: `my-app-demo` (any code you want to review).
+2. In the **app repo**, add CI/CD variables (masked):
+   - **`ANTHROPIC_API_KEY`** (or set `SENTINEL_PROVIDER=groq|gemini` and add the matching key).
+   - If the agent repo is private: **`AGENT_CLONE_URL`** (a clone URL that already includes credentials; keep it masked).
+   - (Optional) **`HTTPS_PROXY`** / `HTTP_PROXY` / `NO_PROXY` for corporate proxy.
+3. In the **app repo**, create `.gitlab-ci.yml` by copying from:
+   - **`examples/gitlab-app-repo/.gitlab-ci.yml`** in this repository.
+4. Open a merge request in the **app repo**, then view the pipeline job artifact **`review.md`**.
+
 ### GitHub Actions
 
 PR review via `gh` and `review.py` is documented in-repo under `.github/workflows/` (Sentinel-style). GitLab uses **`main.py review … --diff`** only; GitHub-specific comment code is not used.
