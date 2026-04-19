@@ -29,8 +29,8 @@ def review_target(
     """
     Main entry point.
     - stream=False → returns (review_text, review_id)
-    - stream=True  → yields (chunk_index, total_chunks, text_delta),
-                     then saves when complete; review_id available via st.session_state
+    - stream=True  → returns a generator yielding (chunk_index, total_chunks, text_delta);
+                     persists when the generator is fully consumed.
     save=False skips persisting to the audit store (useful for tests).
     """
     provider = get_provider(provider_name, api_key=api_key)
@@ -43,29 +43,28 @@ def review_target(
     if not chunks:
         msg = f"No reviewable files found at: {target}"
         if stream:
-            yield (0, 0, msg)
-            return
+            return _empty_stream(msg)
         return msg, None
 
-    total = len(chunks)
+    if stream:
+        return _review_stream(
+            chunks=chunks,
+            provider=provider,
+            system_prompt=system_prompt,
+            target=target,
+            provider_name=provider_name,
+            smart=smart,
+            save=save,
+        )
+
     all_reviews: list[str] = []
-
-    for i, chunk in enumerate(chunks):
+    for chunk in chunks:
         prior_context = _build_prior_context(all_reviews) if all_reviews else ""
-
-        if stream:
-            chunk_text = ""
-            for delta in provider.review_chunk_stream(chunk, system_prompt, prior_context):
-                chunk_text += delta
-                yield (i, total, delta)
-            all_reviews.append(chunk_text)
-        else:
-            text = provider.review_chunk(chunk, system_prompt, prior_context)
-            all_reviews.append(text)
+        text = provider.review_chunk(chunk, system_prompt, prior_context)
+        all_reviews.append(text)
 
     final_text = _merge_reviews(all_reviews, chunks)
     review_id = None
-
     if save:
         review_id = _persist(
             raw=final_text,
@@ -73,9 +72,40 @@ def review_target(
             provider_name=provider_name,
             smart=smart,
         )
+    return final_text, review_id
 
-    if not stream:
-        return final_text, review_id
+
+def _empty_stream(msg: str):
+    yield (0, 0, msg)
+
+
+def _review_stream(
+    chunks,
+    provider: LLMProvider,
+    system_prompt: str,
+    target: str,
+    provider_name: str,
+    smart: bool,
+    save: bool,
+):
+    total = len(chunks)
+    all_reviews: list[str] = []
+    for i, chunk in enumerate(chunks):
+        prior_context = _build_prior_context(all_reviews) if all_reviews else ""
+        chunk_text = ""
+        for delta in provider.review_chunk_stream(chunk, system_prompt, prior_context):
+            chunk_text += delta
+            yield (i, total, delta)
+        all_reviews.append(chunk_text)
+
+    final_text = _merge_reviews(all_reviews, chunks)
+    if save:
+        _persist(
+            raw=final_text,
+            target=target,
+            provider_name=provider_name,
+            smart=smart,
+        )
 
 
 def _persist(raw: str, target: str, provider_name: str, smart: bool) -> int | None:

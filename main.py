@@ -69,7 +69,7 @@ def review(target: str, no_stream: bool, output: str | None, provider: str, api_
             console=console,
         ) as progress:
             progress.add_task("Running review...", total=None)
-            result_text = review_target(str(target_path), stream=False, provider_name=provider, api_key=api_key, smart=smart, diff_ref=diff_ref)
+            result_text, _ = review_target(str(target_path), stream=False, provider_name=provider, api_key=api_key, smart=smart, diff_ref=diff_ref)
 
         _display_result(result_text, output)
     else:

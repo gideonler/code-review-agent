@@ -5,7 +5,6 @@ Suitable for attaching to a PR, emailing, or storing as a compliance artefact.
 
 from datetime import datetime
 from pathlib import Path
-import io
 
 SEVERITY_COLORS = {
     "BLOCKER": "#FF4B4B",
