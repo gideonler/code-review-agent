@@ -143,22 +143,25 @@ Skips: `.git/`, `__pycache__/`, `node_modules/`, `.venv/`, `dist/`, `build/`
 
 ## GitLab merge request review (CI)
 
-The repo includes **`.gitlab-ci.yml`**: on every **merge request** pipeline it reviews the **diff vs the target branch**, writes **`review.md`** as a job artifact, and optionally posts the same text as **one MR discussion** (updated on each push).
+The repo includes **`.gitlab-ci.yml`**: on every **merge request** pipeline it reviews the **diff vs the target branch** and writes **`review.md`** as a job artifact. Pipelines run for **merge request events** only (opening or updating an MR), not for arbitrary branch pushes with no MR.
 
-### One-time setup (GitLab UI)
+### Quick demo (step by step, no GitLab token)
 
-1. Push this repository to GitLab (or merge `.gitlab-ci.yml` into your team project).
-2. **Settings → CI/CD → Variables** — add (masked where possible):
-   - **`ANTHROPIC_API_KEY`** — if you use the default provider (`SENTINEL_PROVIDER=anthropic`).
-   - **`GROQ_API_KEY`** or **`GEMINI_API_KEY`** instead if you set **`SENTINEL_PROVIDER`** to `groq` or `gemini` under variables.
-   - **`HTTP_PROXY`** / **`HTTPS_PROXY`** / **`NO_PROXY`** — if your runners must use a **corporate proxy** to reach the LLM API (Anthropic and Groq honour these via httpx).
-   - **`GITLAB_TOKEN`** (optional, recommended for demos) — a **Project access token** with **`api`** scope, masked. Used to post/update the MR note. Without it, the job still succeeds and you open **Build → Job → Browse** → **`review.md`**.
+You do **not** need **`GITLAB_TOKEN`**. Without it, the review appears only as the job artifact **`review.md`** (not as a discussion comment on the MR).
 
-### Demo flow
+1. **Create a GitLab project** and push this repository so the project contains at least **`.gitlab-ci.yml`**, **`main.py`**, **`pyproject.toml`**, **`CLAUDE.md`**, **`agent/`**, and **`scripts/post_gitlab_mr_note.py`** (pushing the whole repo is simplest).
+2. **Add your LLM key:** **Settings → CI/CD → Variables → Add variable**
+   - **`ANTHROPIC_API_KEY`** — your key; enable **Mask variable**.
+   - (Optional) To use Groq or Gemini instead, add **`SENTINEL_PROVIDER`** with value `groq` or `gemini`, and add **`GROQ_API_KEY`** or **`GEMINI_API_KEY`**.
+   - (Optional) If runners need a corporate proxy to reach the API, add **`HTTPS_PROXY`** / **`HTTP_PROXY`** / **`NO_PROXY`**.
+3. **Open a merge request:** create a branch from the default branch (e.g. `main`), change a file, push, then open an **MR** into that default branch. The pipeline starts when the MR exists (or when you push new commits to the MR branch).
+4. **View the review:** on the MR go to **Pipelines** → open the latest pipeline → job **`sentinel_mr_review`** → **Job artifacts** → **Browse** (or download) → open **`review.md`**.
 
-1. Create a branch, change a file (e.g. add a deliberate bug for the review to catch), open a **merge request**.
-2. Wait for the **`sentinel_mr_review`** job (pipelines tab on the MR).
-3. Show **`review.md`** from **job artifacts**, and if **`GITLAB_TOKEN`** is set, show the **discussion** on the MR.
+The job log may say that **`GITLAB_TOKEN`** is not set; that is expected and does not fail the job.
+
+### Optional: post the review on the MR
+
+If you want the markdown **posted as a discussion** on the merge request (and updated on each push), add a masked **`GITLAB_TOKEN`**: **Settings → Access tokens** (project access token) with **`api`** scope, then add it as a CI/CD variable named **`GITLAB_TOKEN`**.
 
 ### GitHub Actions
 
