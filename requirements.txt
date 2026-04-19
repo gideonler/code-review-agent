@@ -1,3 +1,8 @@
-# All heavy dependencies (anthropic, gitpython, etc.) come from the agent package.
-# Install the agent first: pip install -e ./code-review-agent
-# This file exists for any sentinel-bot-specific additions in future.
+anthropic>=0.40.0
+streamlit>=1.35.0
+python-dotenv>=1.0.0
+click>=8.1.0
+rich>=13.0.0
+gitpython>=3.1.0
+# Optional — only needed if using Gemini provider
+google-genai>=1.0.0
