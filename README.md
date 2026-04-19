@@ -210,6 +210,17 @@ prepare:
 
 The repo includes **`.gitlab-ci.yml`**: on every **merge request** pipeline it reviews the **diff vs the target branch** and writes **`review.md`** as a job artifact. Pipelines run for **merge request events** only (opening or updating an MR), not for arbitrary branch pushes with no MR.
 
+### Do I need to change `main.py`?
+
+No. For both demo modes (same repo or separate app repo), `main.py` already supports what CI needs:
+
+- `python main.py review .`
+- `--diff origin/<target-branch>`
+- `--provider anthropic|groq|gemini`
+- `--output review.md`
+
+Use CI/YAML and variables for setup; code changes in `main.py` are not required for the demo.
+
 ### Quick demo (step by step, no GitLab token)
 
 You do **not** need **`GITLAB_TOKEN`**. Without it, the review appears only as the job artifact **`review.md`** (not as a discussion comment on the MR).
