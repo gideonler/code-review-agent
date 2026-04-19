@@ -2,6 +2,7 @@ import os
 from typing import Iterator
 
 from agent.chunker import FileChunk
+from agent.http_client import llm_http_client
 from agent.providers.base import LLMProvider
 
 MODEL = "llama-3.3-70b-versatile"
@@ -22,7 +23,7 @@ class GroqProvider(LLMProvider):
         if not key:
             raise RuntimeError("GROQ_API_KEY is not set")
 
-        self._client = Groq(api_key=key)
+        self._client = Groq(api_key=key, http_client=llm_http_client())
 
     def _messages(self, chunk: FileChunk, system_prompt: str, context: str) -> list:
         user_content = f"Please review the following code.\n\n{chunk.content}"

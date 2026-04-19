@@ -1,0 +1,59 @@
+# Sentinel-style AI review on merge requests (diff vs target branch).
+#
+# GitLab → Settings → CI/CD → Variables (masked):
+#   ANTHROPIC_API_KEY   (if SENTINEL_PROVIDER=anthropic, default)
+#   GROQ_API_KEY        (if SENTINEL_PROVIDER=groq)
+#   GEMINI_API_KEY      (if SENTINEL_PROVIDER=gemini)
+#
+# Optional — corporate proxy so runners can reach the LLM API:
+#   HTTP_PROXY, HTTPS_PROXY, NO_PROXY
+#
+# Optional — post review as an MR discussion (else only job artifact review.md):
+#   GITLAB_TOKEN        Project access token with api scope (recommended if CI_JOB_TOKEN cannot post notes)
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+variables:
+  GIT_DEPTH: "0"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  # Override in GitLab CI/CD → Variables: anthropic | groq | gemini
+  SENTINEL_PROVIDER: "anthropic"
+
+stages:
+  - review
+
+sentinel_mr_review:
+  stage: review
+  image: python:3.11-bookworm
+  timeout: 45m
+  interruptible: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  before_script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - python -m pip install --upgrade pip
+    - python -m pip install -e .
+    - |
+      if [ "$SENTINEL_PROVIDER" = "groq" ]; then python -m pip install "groq>=0.9.0"; fi
+    - |
+      if [ "$SENTINEL_PROVIDER" = "gemini" ]; then python -m pip install "google-genai>=1.0.0"; fi
+  script:
+    - |
+      python main.py review . --no-stream --output review.md \
+        --provider "$SENTINEL_PROVIDER" \
+        --diff "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    # MR discussion: use a Project access token (api scope), masked as GITLAB_TOKEN.
+    # CI_JOB_TOKEN often cannot create notes depending on project settings; token is most reliable for demos.
+    - |
+      if [ -n "${GITLAB_TOKEN:-}" ]; then
+        python scripts/post_gitlab_mr_note.py review.md
+      else
+        echo "GITLAB_TOKEN not set — review is only in job artifacts (review.md). Add a masked project token to post on the MR."
+      fi
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - review.md
