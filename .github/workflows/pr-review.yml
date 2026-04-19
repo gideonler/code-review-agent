@@ -17,13 +17,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout Sentinel bot
+        uses: actions/checkout@v4
+        with:
+          repository: gideonler/sentinel-bot
+          path: sentinel-bot
+
       - name: Checkout Sentinel agent
         uses: actions/checkout@v4
         with:
           repository: gideonler/code-review-agent
           path: code-review-agent
-          # Uncomment if repo is private:
-          # token: ${{ secrets.AGENT_REPO_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,19 +35,14 @@ jobs:
           python-version: "3.11"
 
       - name: Install agent + dependencies
-        run: pip install -e ./code-review-agent
+        run: pip install -e ./code-review-agent groq
 
       - name: Fetch base branch for diff
         run: git fetch origin ${{ github.base_ref }}
 
       - name: Run Sentinel review
         env:
-          # Which provider to use — set via repo variable SENTINEL_PROVIDER
-          # (Settings → Variables → Actions). Defaults to "anthropic".
-          # Supported values: anthropic | gemini | groq
           SENTINEL_PROVIDER: ${{ vars.SENTINEL_PROVIDER || 'anthropic' }}
-          # Add any provider key you use as a repo/org secret.
-          # Only the one matching SENTINEL_PROVIDER needs to be set.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -51,4 +50,4 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python review.py
+        run: python sentinel-bot/review.py
