@@ -5,6 +5,8 @@ into reviewable units that fit within the model's context window.
 
 import os
 import re
+import io
+import io
 import tokenize
 import io
 from dataclasses import dataclass
@@ -27,7 +29,6 @@ SKIP_PATTERNS = {
     "*.min.js", "*.min.css", "*.pb.go", "*.pb.py",
 }
 
-# Higher score = reviewed first. Files not listed default to 50.
 FILE_PRIORITY: dict[str, int] = {
     # Auth / secrets / credentials — highest risk
     "auth": 100, "credential": 100, "secret": 100, "token": 100,

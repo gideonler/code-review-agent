@@ -4,6 +4,7 @@ from typing import Iterator
 import anthropic
 
 from agent.chunker import FileChunk
+from agent.http_client import llm_http_client
 from agent.providers.base import LLMProvider
 
 MODEL = "claude-sonnet-4-6"
@@ -16,7 +17,7 @@ class AnthropicProvider(LLMProvider):
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set")
-        self._client = anthropic.Anthropic(api_key=key)
+        self._client = anthropic.Anthropic(api_key=key, http_client=llm_http_client())
 
     def _build_user_message(self, chunk: FileChunk, context: str) -> str:
         msg = f"Please review the following code.\n\n{chunk.content}"
