@@ -141,6 +141,71 @@ Skips: `.git/`, `__pycache__/`, `node_modules/`, `.venv/`, `dist/`, `build/`
 
 ---
 
+
+## GitLab merge request demo (internal GitLab + separate app repo)
+
+Use this when your team code is in an internal GitLab project (for example, `alpine_project`) and this agent repo is hosted separately.
+
+### Overview
+
+- **Agent repo** (`code-review-agent`): contains reviewer logic.
+- **App repo** (`alpine_project`): contains the code you want reviewed.
+- App repo CI clones the agent repo during pipeline, runs review on the MR diff, and saves `review.md` as an artifact.
+
+### Step-by-step
+
+1. **Push this agent repo to internal GitLab**
+
+```bash
+git remote add internal <INTERNAL_GITLAB_REPO_URL>
+git push -u internal main
+```
+
+2. **In your app repo (`alpine_project`), add CI config**
+   - Copy `examples/gitlab-app-repo/.gitlab-ci.yml` from this repo.
+   - Paste it into `alpine_project/.gitlab-ci.yml`.
+   - Set `AGENT_GIT_URL` to your internal GitLab URL for `code-review-agent`.
+
+3. **Set CI/CD variables in app repo (masked)**
+   - `ANTHROPIC_API_KEY` (default provider).
+   - Optional provider override:
+     - `SENTINEL_PROVIDER=groq` + `GROQ_API_KEY`
+     - `SENTINEL_PROVIDER=gemini` + `GEMINI_API_KEY`
+   - If your runner needs proxy:
+     - `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`
+     - Ensure `NO_PROXY` includes your internal GitLab host/domain.
+
+4. **If agent repo is private, set clone auth**
+   - Add masked `AGENT_CLONE_URL` (tokenized clone URL) in app repo variables.
+   - Template uses `AGENT_CLONE_URL` when set; otherwise it uses `AGENT_GIT_URL`.
+
+5. **Run the demo**
+   - Create a branch in app repo, commit a small change, push, open an MR.
+   - Open pipeline job `sentinel_mr_review`.
+   - Open artifact `review.md` and present results.
+
+### Do I need `GITLAB_TOKEN`?
+
+No. For demo, artifact-only output is enough.
+
+- Without `GITLAB_TOKEN`: review appears in job artifact `review.md`.
+- With `GITLAB_TOKEN`: optional MR discussion comment posting.
+
+### Quick troubleshooting
+
+- **`prepare` job missing**: your org CI template likely injects `needs: [prepare]`.
+  Add temporary job in app repo:
+
+```yaml
+prepare:
+  stage: .pre
+  script:
+    - echo "prepare"
+```
+
+- **Clone failed**: check `AGENT_GIT_URL` / `AGENT_CLONE_URL` and token scope.
+- **Provider timeout/connect errors**: check proxy vars and outbound policy.
+=======
 ## GitLab merge request review (CI)
 
 The repo includes **`.gitlab-ci.yml`**: on every **merge request** pipeline it reviews the **diff vs the target branch** and writes **`review.md`** as a job artifact. Pipelines run for **merge request events** only (opening or updating an MR), not for arbitrary branch pushes with no MR.
@@ -181,6 +246,7 @@ If you want a **separate repository** that contains only your application code (
 ### GitHub Actions
 
 PR review via `gh` and `review.py` is documented in-repo under `.github/workflows/` (Sentinel-style). GitLab uses **`main.py review … --diff`** only; GitHub-specific comment code is not used.
+
 
 ---
 
